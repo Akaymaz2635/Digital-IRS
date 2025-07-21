@@ -688,4 +688,173 @@ class NavigableMainWindow(ctk.CTk):
         self.stats_label.pack(side="left", padx=10, pady=10)
         
         # Kaydetme butonları
-        save_frame = ctk.CTkFrame(bottom_frame, fg_color="transparent
+        save_frame = ctk.CTkFrame(bottom_frame, fg_color="transparent")
+        save_frame.pack(side="right", padx=10, pady=5)
+        
+        export_button = ctk.CTkButton(
+            save_frame,
+            text="Excel'e Aktar",
+            command=self.export_to_excel,
+            height=30
+        )
+        export_button.pack(side="right", padx=5)
+    
+    def select_file(self):
+        """Word dosyası seçme"""
+        file_path = filedialog.askopenfilename(
+            title="Word Dosyası Seçin",
+            filetypes=[
+                ("Word Dosyaları", "*.docx *.doc"),
+                ("Tüm Dosyalar", "*.*")
+            ]
+        )
+        
+        if file_path:
+            self.current_file_path = file_path
+            file_name = os.path.basename(file_path)
+            self.file_path_label.configure(text=f"Seçilen: {file_name}")
+            self.process_button.configure(state="normal")
+    
+    def process_file(self):
+        """Dosyayı işler - hem karakterleri hem dokümanı yükler"""
+        if not self.current_file_path:
+            messagebox.showerror("Hata", "Önce bir dosya seçin!")
+            return
+        
+        try:
+            self.file_path_label.configure(text="İşleniyor...")
+            self.update()
+            
+            # 1. Word dosyasını karakterler için işle
+            if not self.word_service.load_document(self.current_file_path):
+                messagebox.showerror("Hata", "Word dosyası yüklenemedi!")
+                return
+            
+            tables = self.word_service.extract_tables()
+            
+            if not tables:
+                messagebox.showwarning("Uyarı", "Dokümanda tablo bulunamadı!")
+                return
+            
+            self.karakterler = self.data_service.process_dataframe(tables[0])
+            
+            if not self.karakterler:
+                messagebox.showwarning("Uyarı", "Geçerli karakter bulunamadı!")
+                return
+            
+            # 2. Dokümanı sağ panelde göster
+            self.document_viewer.load_document(self.current_file_path)
+            
+            # 3. İlk karakteri göster
+            self.current_index = 0
+            self.show_current_karakter()
+            self.update_navigation()
+            self.update_stats()
+            
+            file_name = os.path.basename(self.current_file_path)
+            self.file_path_label.configure(text=f"✓ Yüklendi: {file_name}")
+            
+            messagebox.showinfo("Başarılı", f"{len(self.karakterler)} karakter yüklendi!\n\nOk tuşları ile navigate edebilirsiniz.")
+            
+        except Exception as e:
+            messagebox.showerror("Hata", f"İşleme hatası:\n{str(e)}")
+            print(f"İşleme hatası: {e}")
+    
+    def show_current_karakter(self):
+        """Mevcut karakteri gösterir"""
+        if 0 <= self.current_index < len(self.karakterler):
+            karakter = self.karakterler[self.current_index]
+            self.karakter_view.load_karakter(karakter)
+            print(f"Karakter gösteriliyor: {self.current_index + 1}/{len(self.karakterler)} - {karakter.item_no}")
+    
+    def navigate_to(self, new_index: int):
+        """Belirtilen indekse navigate eder"""
+        if not self.karakterler:
+            return
+        
+        if 0 <= new_index < len(self.karakterler):
+            self.current_index = new_index
+            self.show_current_karakter()
+            self.update_navigation()
+            print(f"Navigate: {self.current_index + 1}/{len(self.karakterler)}")
+    
+    def update_navigation(self):
+        """Navigasyon durumunu günceller"""
+        if self.karakterler:
+            self.navigation_panel.update_navigation(self.current_index, len(self.karakterler))
+    
+    def on_karakter_updated(self, karakter: TeknikResimKarakteri):
+        """Karakter güncellendiğinde çağrılır"""
+        print(f"Karakter güncellendi: {karakter.item_no} = {karakter.actual}")
+        self.update_stats()
+    
+    def update_stats(self):
+        """İstatistikleri günceller"""
+        if not self.karakterler:
+            return
+        
+        # Ölçüm durumu
+        total = len(self.karakterler)
+        measured = len([k for k in self.karakterler if k.actual])
+        unmeasured = total - measured
+        
+        # Mevcut karakter bilgisi
+        current_info = f"Şu an: {self.current_index + 1}/{total}"
+        
+        # İstatistik metni
+        stats_text = f"{current_info} | Toplam: {total} | Ölçülen: {measured} | Bekleyen: {unmeasured}"
+        
+        if total > 0:
+            percentage = (measured / total) * 100
+            stats_text += f" | Tamamlanan: %{percentage:.1f}"
+        
+        self.stats_label.configure(text=stats_text)
+    
+    def export_to_excel(self):
+        """Sonuçları Excel'e aktarır"""
+        if not self.karakterler:
+            messagebox.showwarning("Uyarı", "Önce veri yükleyin!")
+            return
+        
+        try:
+            # Excel dosyası yolu seç
+            file_path = filedialog.asksaveasfilename(
+                title="Excel Dosyası Kaydet",
+                defaultextension=".xlsx",
+                filetypes=[("Excel Dosyaları", "*.xlsx"), ("Tüm Dosyalar", "*.*")]
+            )
+            
+            if file_path:
+                import pandas as pd
+                
+                # DataFrame oluştur
+                data = []
+                for karakter in self.karakterler:
+                    data.append({
+                        'Item No': karakter.item_no,
+                        'Dimension': karakter.dimension,
+                        'Tooling': karakter.tooling,
+                        'BP Zone': karakter.bp_zone,
+                        'Remarks': karakter.remarks,
+                        'Inspection Level': karakter.inspection_level,
+                        'Actual': karakter.actual
+                    })
+                
+                df = pd.DataFrame(data)
+                df.to_excel(file_path, index=False)
+                
+                messagebox.showinfo("Başarılı", f"Veriler Excel'e aktarıldı:\n{file_path}")
+                
+        except Exception as e:
+            messagebox.showerror("Hata", f"Excel aktarım hatası:\n{str(e)}")
+
+
+# Ana çalıştırma
+if __name__ == "__main__":
+    # CustomTkinter tema ayarları
+    ctk.set_appearance_mode("dark")
+    ctk.set_default_color_theme("blue")
+    
+    # Uygulamayı başlat
+    app = NavigableMainWindow()
+    app.mainloop()
