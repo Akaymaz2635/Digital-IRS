@@ -1,0 +1,399 @@
+# src/services/word_reader.py
+"""
+Word dosyası okuma servisi - Basit ve anlaşılır versiyon
+"""
+import pandas as pd
+from docx import Document
+from typing import List, Optional
+
+class WordReaderService:
+    """Word dosyalarından tablo okuma servisi"""
+    
+    def __init__(self):
+        self.current_document = None
+        self.file_path = None
+    
+    def load_document(self, file_path: str) -> bool:
+        """
+        Word dosyasını yükler
+        
+        Args:
+            file_path: Word dosyasının yolu
+            
+        Returns:
+            bool: Yükleme başarılı mı?
+        """
+        try:
+            # Dosya var mı kontrol et
+            import os
+            if not os.path.exists(file_path):
+                print(f"HATA: Dosya bulunamadı: {file_path}")
+                return False
+            
+            # Word dosyası mı kontrol et
+            if not file_path.lower().endswith(('.docx', '.doc')):
+                print("HATA: Sadece .docx ve .doc dosyaları desteklenir")
+                return False
+            
+            # Dosyayı yükle
+            self.current_document = Document(file_path)
+            self.file_path = file_path
+            
+            print(f"✓ Dosya başarıyla yüklendi: {file_path}")
+            print(f"✓ Dokümanda {len(self.current_document.tables)} tablo bulundu")
+            return True
+            
+        except Exception as e:
+            print(f"HATA: Dosya yüklenirken bir sorun oluştu: {e}")
+            return False
+    
+    def extract_tables(self) -> List[pd.DataFrame]:
+        """
+        Dokümandaki tüm tabloları DataFrame listesi olarak döner
+        
+        Returns:
+            List[pd.DataFrame]: Tablo listesi
+        """
+        # Doküman yüklendi mi kontrol et
+        if self.current_document is None:
+            print("HATA: Önce bir doküman yüklemelisiniz!")
+            return []
+        
+        tables = []
+        
+        print(f"Tablolar çıkarılıyor...")
+        
+        for i, table in enumerate(self.current_document.tables):
+            try:
+                print(f"  Tablo {i+1} işleniyor...")
+                df = self._table_to_dataframe(table)
+                
+                if not df.empty:
+                    tables.append(df)
+                    print(f"  ✓ Tablo {i+1}: {len(df)} satır çıkarıldı")
+                else:
+                    print(f"  ⚠ Tablo {i+1}: Boş tablo, atlandı")
+                    
+            except Exception as e:
+                print(f"  ✗ Tablo {i+1}: Hata oluştu - {e}")
+                continue
+        
+        print(f"✓ Toplam {len(tables)} tablo başarıyla çıkarıldı")
+        return tables
+    
+    def _table_to_dataframe(self, table) -> pd.DataFrame:
+        """
+        Word tablosunu DataFrame'e dönüştürür
+        
+        Bu method Word tablosundaki her satır ve hücreyi okuyup 
+        pandas DataFrame'e çevirir
+        """
+        try:
+            # Tablo verilerini topla
+            data = []
+            
+            for row in table.rows:
+                row_data = []
+                for cell in row.cells:
+                    # Hücredeki metni al ve temizle
+                    cell_text = cell.text.strip()
+                    row_data.append(cell_text)
+                data.append(row_data)
+            
+            # Veri var mı kontrol et
+            if not data:
+                return pd.DataFrame()
+            
+            # İlk satırı başlık olarak kullan
+            headers = data[0]
+            rows = data[1:]  # Kalan satırlar veri
+            
+            # DataFrame oluştur
+            df = pd.DataFrame(rows, columns=headers)
+            
+            # Tamamen boş satırları kaldır
+            df = df.dropna(how='all')
+            
+            return df
+            
+        except Exception as e:
+            print(f"Tablo dönüştürme hatası: {e}")
+            return pd.DataFrame()
+
+
+# src/services/data_processor.py
+"""
+Veri işleme servisi - Basit ve anlaşılır versiyon
+"""
+import pandas as pd
+from typing import List, Optional
+
+# Model import - gerçek projede models klasöründen gelecek
+from dataclasses import dataclass
+
+@dataclass
+class TeknikResimKarakteri:
+    """Teknik resim karakteri veri modeli"""
+    item_no: str
+    dimension: str
+    tooling: str
+    remarks: str = ""
+    bp_zone: str = ""
+    inspection_level: str = "100%"
+    actual: Optional[str] = None
+
+class DataProcessorService:
+    """
+    DataFrame'i TeknikResimKarakteri listesine dönüştürür
+    """
+    
+    def __init__(self):
+        self.processed_data = []
+        
+        # Kolon eşleştirme tablosu - basit versiyon
+        # Sol taraf: Word'deki kolon isimleri
+        # Sağ taraf: Kod içinde kullandığımız standart isimler
+        self.column_mapping = {
+            # Item No çeşitleri
+            'ITEM NO': 'item_no',
+            'ITEM_NO': 'item_no',
+            'ITEM NUMBER': 'item_no',
+            'PARÇA NO': 'item_no',
+            
+            # Dimension çeşitleri
+            'DIMENSION': 'dimension',
+            'DIMENSIONS': 'dimension',
+            'ÖLÇÜ': 'dimension',
+            'BOYUT': 'dimension',
+            
+            # Tooling çeşitleri
+            'TOOLING': 'tooling',
+            'TOOL': 'tooling',
+            'ALET': 'tooling',
+            'ÖLÇÜM ALETİ': 'tooling',
+            
+            # Remarks çeşitleri
+            'REMARKS': 'remarks',
+            'AÇIKLAMA': 'remarks',
+            'NOT': 'remarks',
+            'NOTLAR': 'remarks',
+            
+            # BP Zone çeşitleri
+            'B/P ZONE': 'bp_zone',
+            'BP_ZONE': 'bp_zone',
+            'BÖLGE': 'bp_zone',
+            'ZONE': 'bp_zone',
+            
+            # Inspection Level çeşitleri
+            'INSP. LEVEL': 'inspection_level',
+            'INSPECTION_LEVEL': 'inspection_level',
+            'KONTROL SEVİYESİ': 'inspection_level',
+            
+            # Actual çeşitleri
+            'ACTUAL': 'actual',
+            'GERÇEK': 'actual',
+            'ÖLÇÜM': 'actual',
+            'SONUÇ': 'actual'
+        }
+    
+    def process_dataframe(self, df: pd.DataFrame) -> List[TeknikResimKarakteri]:
+        """
+        DataFrame'i işler ve TeknikResimKarakteri listesi döner
+        
+        Args:
+            df: Word'den çıkan ham DataFrame
+            
+        Returns:
+            List[TeknikResimKarakteri]: İşlenmiş karakter listesi
+        """
+        try:
+            print("Veri işleme başlıyor...")
+            
+            # Boş DataFrame kontrolü
+            if df.empty:
+                print("⚠ Boş DataFrame alındı")
+                return []
+            
+            print(f"  Gelen veri: {len(df)} satır, {len(df.columns)} kolon")
+            print(f"  Kolon isimleri: {list(df.columns)}")
+            
+            # 1. Veriyi temizle
+            clean_df = self._clean_data(df)
+            
+            # 2. Kolon isimlerini eşleştir
+            mapped_df = self._map_columns(clean_df)
+            
+            # 3. Gerekli kolonları kontrol et
+            if not self._check_required_columns(mapped_df):
+                return []
+            
+            # 4. TeknikResimKarakteri objelerine dönüştür
+            karakterler = self._convert_to_models(mapped_df)
+            
+            self.processed_data = karakterler
+            
+            print(f"✓ {len(karakterler)} karakter başarıyla işlendi")
+            return karakterler
+            
+        except Exception as e:
+            print(f"HATA: Veri işleme sırasında sorun oluştu: {e}")
+            return []
+    
+    def _clean_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Veriyi temizler"""
+        print("  Veri temizleniyor...")
+        
+        # Kopyasını al
+        clean_df = df.copy()
+        
+        # Tamamen boş satırları kaldır
+        clean_df = clean_df.dropna(how='all')
+        
+        # String kolonlardaki başta/sondaki boşlukları temizle
+        for col in clean_df.columns:
+            if clean_df[col].dtype == 'object':  # String kolonlar
+                clean_df[col] = clean_df[col].astype(str).str.strip()
+        
+        # Boş string'leri None yap
+        clean_df = clean_df.replace('', None)
+        clean_df = clean_df.replace('nan', None)
+        
+        print(f"  ✓ Temizleme sonrası: {len(clean_df)} satır kaldı")
+        return clean_df
+    
+    def _map_columns(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Kolon isimlerini standart isimlere çevirir"""
+        print("  Kolon isimleri eşleştiriliyor...")
+        
+        # Hangi kolonların eşleştiğini bul
+        rename_dict = {}
+        for col in df.columns:
+            # Büyük harfe çevir ve kontrol et
+            col_upper = str(col).upper().strip()
+            if col_upper in self.column_mapping:
+                rename_dict[col] = self.column_mapping[col_upper]
+        
+        # Eşleştirmeleri uygula
+        mapped_df = df.rename(columns=rename_dict)
+        
+        print(f"  ✓ Eşleştirilen kolonlar: {rename_dict}")
+        
+        # Eşleşmeyen kolonları göster
+        unmapped = [col for col in df.columns if col not in rename_dict]
+        if unmapped:
+            print(f"  ⚠ Eşleşmeyen kolonlar: {unmapped}")
+        
+        return mapped_df
+    
+    def _check_required_columns(self, df: pd.DataFrame) -> bool:
+        """Gerekli kolonların varlığını kontrol eder"""
+        required_columns = ['item_no', 'dimension', 'tooling']
+        missing_columns = []
+        
+        for col in required_columns:
+            if col not in df.columns:
+                missing_columns.append(col)
+        
+        if missing_columns:
+            print(f"✗ HATA: Gerekli kolonlar eksik: {missing_columns}")
+            print(f"  Mevcut kolonlar: {list(df.columns)}")
+            print("  Lütfen Word dokümanındaki kolon isimlerini kontrol edin")
+            return False
+        
+        print("  ✓ Gerekli kolonlar mevcut")
+        return True
+    
+    def _convert_to_models(self, df: pd.DataFrame) -> List[TeknikResimKarakteri]:
+        """DataFrame'i TeknikResimKarakteri objelerine dönüştürür"""
+        print("  Model objelerine dönüştürülüyor...")
+        
+        karakterler = []
+        
+        for index, row in df.iterrows():
+            try:
+                # Her satır için TeknikResimKarakteri objesi oluştur
+                karakter = TeknikResimKarakteri(
+                    item_no=str(row.get('item_no', '')),
+                    dimension=str(row.get('dimension', '')),
+                    tooling=str(row.get('tooling', '')),
+                    remarks=str(row.get('remarks', '')),
+                    bp_zone=str(row.get('bp_zone', '')),
+                    inspection_level=str(row.get('inspection_level', '100%')),
+                    actual=row.get('actual') if pd.notna(row.get('actual')) else None
+                )
+                
+                # Temel kontroller
+                if not karakter.item_no or karakter.item_no in ['nan', 'None']:
+                    print(f"  ⚠ Satır {index+1}: Item no boş, atlanıyor")
+                    continue
+                    
+                if not karakter.dimension or karakter.dimension in ['nan', 'None']:
+                    print(f"  ⚠ Satır {index+1}: Dimension boş, atlanıyor")
+                    continue
+                
+                karakterler.append(karakter)
+                
+            except Exception as e:
+                print(f"  ✗ Satır {index+1} işlenirken hata: {e}")
+                continue
+        
+        return karakterler
+    
+    def get_summary(self) -> dict:
+        """İşlenen verinin özetini döner"""
+        if not self.processed_data:
+            return {"mesaj": "Henüz veri işlenmedi"}
+        
+        # Alet dağılımını hesapla
+        alet_sayilari = {}
+        for karakter in self.processed_data:
+            alet = karakter.tooling
+            alet_sayilari[alet] = alet_sayilari.get(alet, 0) + 1
+        
+        return {
+            "toplam_karakter": len(self.processed_data),
+            "alet_dagilimi": alet_sayilari,
+            "farkli_alet_sayisi": len(alet_sayilari)
+        }
+
+
+# Kullanım örneği
+if __name__ == "__main__":
+    # 1. Word dosyasını oku
+    word_service = WordReaderService()
+    
+    # Dosya yolu - kendi dosya yolunuzu yazın
+    dosya_yolu = "C:\\path\\to\\your\\document.docx"
+    
+    if word_service.load_document(dosya_yolu):
+        # 2. Tabloları çıkar
+        tables = word_service.extract_tables()
+        
+        if tables:
+            # 3. İlk tabloyu işle
+            data_service = DataProcessorService()
+            karakterler = data_service.process_dataframe(tables[0])
+            
+            # 4. Sonuçları göster
+            if karakterler:
+                print(f"\n--- SONUÇLAR ---")
+                print(f"Toplam {len(karakterler)} karakter işlendi")
+                
+                # İlk 3 karakteri göster
+                for i, karakter in enumerate(karakterler[:3]):
+                    print(f"\nKarakter {i+1}:")
+                    print(f"  Item No: {karakter.item_no}")
+                    print(f"  Dimension: {karakter.dimension}")
+                    print(f"  Tooling: {karakter.tooling}")
+                
+                # Özet istatistikler
+                ozet = data_service.get_summary()
+                print(f"\n--- ÖZET ---")
+                print(f"Toplam: {ozet['toplam_karakter']}")
+                print(f"Alet dağılımı: {ozet['alet_dagilimi']}")
+            else:
+                print("Hiç karakter işlenemedi!")
+        else:
+            print("Hiç tablo bulunamadı!")
+    else:
+        print("Dosya yüklenemedi!")
