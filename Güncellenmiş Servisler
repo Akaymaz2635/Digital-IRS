@@ -1,0 +1,273 @@
+# services/word_reader.py - Senin çalışan versiyonun
+
+“””
+Belirtilen word dosyasından tablo okuma işlemlerini yapar
+“””
+import pandas as pd
+from docx import Document
+from typing import List
+
+class WordReaderService:
+def **init**(self):
+self.current_document = None
+
+```
+def load_document(self, file_path: str) -> bool:
+    """Word Dosyasını Yükler"""
+    try:
+        doc = Document(file_path)
+        self.current_document = doc
+        print(f"✓ Word dosyası yüklendi: {file_path}")
+        return True
+    except Exception as e:
+        print(f"HATA: Word dosyası yüklenemedi - {e}")
+        return False
+
+def extract_tables(self, file_path: str) -> List:
+    """
+    Word içerisindeki Tabloları Veri Toplar ve Liste Olarak Döndürür
+    """
+    print("Veri işleme başlıyor...")
+    
+    # Sabit header tanımla - senin çalışan versiyonun
+    extracted_data = ["ITEM NO",
+                      "DIMENSION", 
+                      "ACTUAL",
+                      "BADGE",
+                      "TOOLING",
+                      "REMARKS", 
+                      "B/P ZONE",
+                      "INSP. LEVEL"]
+    
+    try:
+        # Word dokümanını yükle
+        word_document = self.load_document(file_path=file_path)
+        if not word_document:
+            return []
+        
+        tables = self.current_document.tables
+        print(f"  {len(tables)} tablo bulundu")
+        
+        for table_idx, table in enumerate(tables):
+            print(f"  Tablo {table_idx + 1} işleniyor...")
+            
+            for row in table.rows:
+                row_data = []
+                for cell in row.cells:
+                    # Hücredeki tüm paragrafları birleştir
+                    cell_text = '\n'.join([p.text for p in cell.paragraphs])
+                    row_data.append(cell_text)
+                
+                # Senin filtreleme mantığın
+                if (len(row_data) > 2 and 
+                    row_data not in extracted_data and 
+                    row_data[0].startswith("KN") and 
+                    not row_data[1].strip().endswith("Inch")):
+                    
+                    extracted_data.append(row_data)
+                    print(f"    ✓ Satır eklendi: {row_data[0]}")
+        
+        print(f"✓ Toplam {len(extracted_data) - 1} karakter çıkarıldı")
+        return extracted_data
+        
+    except Exception as e:
+        print(f"HATA: Tablo çıkarma işleminde sorun: {e}")
+        return []
+```
+
+# services/data_processor.py - Senin çalışan versiyonun + Model entegrasyonu
+
+“””
+Veri işleme servisi - Liste’yi DataFrame’e ve Model’e çevirir
+“””
+import pandas as pd
+from typing import List, Optional
+from dataclasses import dataclass
+
+@dataclass
+class TeknikResimKarakteri:
+“”“Teknik resim karakteri veri modeli”””
+item_no: str
+dimension: str
+tooling: str
+remarks: str = “”
+bp_zone: str = “”
+inspection_level: str = “100%”
+actual: Optional[str] = None
+badge: str = “”  # BADGE kolonu için eklendi
+
+class DataProcessorService:
+“””
+Word içerisinden elde edilen listeyi mantıklı bir DataFrame yapısına çevirir
+“””
+
+```
+def __init__(self):
+    self.processed_data = []
+    self.dataframe = None
+
+def from_word_tables(self, word_reader: 'WordReaderService', file_path: str) -> pd.DataFrame:
+    """
+    WordReaderService'den veri alıp DataFrame oluşturur
+    """
+    print("DataFrame oluşturuluyor...")
+    
+    try:
+        # Word'den veri çıkar
+        extracted_data = word_reader.extract_tables(file_path)
+        
+        if not extracted_data or len(extracted_data) < 2:
+            print("✗ Yeterli veri bulunamadı")
+            return pd.DataFrame()
+        
+        # DataFrame oluştur - senin mantığın
+        df = pd.DataFrame(extracted_data[1:], columns=extracted_data[0])
+        
+        print(f"✓ DataFrame oluşturuldu: {len(df)} satır, {len(df.columns)} kolon")
+        print(f"  Kolon isimleri: {list(df.columns)}")
+        
+        self.dataframe = df
+        return df
+        
+    except Exception as e:
+        print(f"HATA: DataFrame oluşturma hatası: {e}")
+        return pd.DataFrame()
+
+def process_dataframe(self, df: pd.DataFrame) -> List[TeknikResimKarakteri]:
+    """
+    DataFrame'i TeknikResimKarakteri model objelerine dönüştürür
+    """
+    print("Model objelerine dönüştürülüyor...")
+    
+    if df.empty:
+        print("✗ Boş DataFrame")
+        return []
+    
+    try:
+        karakterler = []
+        
+        for index, row in df.iterrows():
+            try:
+                # Güvenli veri çıkarma
+                item_no = str(row.get('ITEM NO', '')).strip()
+                dimension = str(row.get('DIMENSION', '')).strip()
+                tooling = str(row.get('TOOLING', '')).strip()
+                remarks = str(row.get('REMARKS', '')).strip()
+                bp_zone = str(row.get('B/P ZONE', '')).strip()
+                inspection_level = str(row.get('INSP. LEVEL', '100%')).strip()
+                actual = row.get('ACTUAL')
+                badge = str(row.get('BADGE', '')).strip()
+                
+                # Actual değeri işleme
+                if pd.isna(actual) or str(actual).strip() in ['', 'nan', 'None']:
+                    actual = None
+                else:
+                    actual = str(actual).strip()
+                
+                # Temel validasyon
+                if not item_no or item_no in ['nan', 'None']:
+                    print(f"  ⚠ Satır {index + 1}: Item no boş, atlanıyor")
+                    continue
+                
+                if not dimension or dimension in ['nan', 'None']:
+                    print(f"  ⚠ Satır {index + 1}: Dimension boş, atlanıyor")
+                    continue
+                
+                # Model objesi oluştur
+                karakter = TeknikResimKarakteri(
+                    item_no=item_no,
+                    dimension=dimension,
+                    tooling=tooling,
+                    remarks=remarks,
+                    bp_zone=bp_zone,
+                    inspection_level=inspection_level,
+                    actual=actual,
+                    badge=badge
+                )
+                
+                karakterler.append(karakter)
+                print(f"  ✓ {karakter.item_no} eklendi")
+                
+            except Exception as e:
+                print(f"  ✗ Satır {index + 1} işlenirken hata: {e}")
+                continue
+        
+        self.processed_data = karakterler
+        print(f"✓ {len(karakterler)} karakter başarıyla işlendi")
+        return karakterler
+        
+    except Exception as e:
+        print(f"HATA: Model dönüştürme hatası: {e}")
+        return []
+
+def get_summary(self) -> dict:
+    """İşlenen verinin özetini döner"""
+    if not self.processed_data:
+        return {"mesaj": "Henüz veri işlenmedi"}
+    
+    # Alet dağılımını hesapla
+    alet_sayilari = {}
+    for karakter in self.processed_data:
+        alet = karakter.tooling
+        alet_sayilari[alet] = alet_sayilari.get(alet, 0) + 1
+    
+    return {
+        "toplam_karakter": len(self.processed_data),
+        "alet_dagilimi": alet_sayilari,
+        "farkli_alet_sayisi": len(alet_sayilari)
+    }
+```
+
+# UI entegrasyon için güncelleme gerekli kısım
+
+# NavigableMainWindow.process_file() metodunu güncelle:
+
+def process_file_updated(self):
+“””
+GÜNCELLENMIŞ - Senin servislerinle çalışan versiyon
+“””
+if not self.current_file_path:
+messagebox.showerror(“Hata”, “Önce bir dosya seçin!”)
+return
+
+```
+try:
+    self.file_path_label.configure(text="İşleniyor...")
+    self.update()
+    
+    # 1. Word servisini başlat (sadece init)
+    word_service = WordReaderService()
+    
+    # 2. Data processor ile DataFrame oluştur
+    data_service = DataProcessorService()
+    df = data_service.from_word_tables(word_service, self.current_file_path)
+    
+    if df.empty:
+        messagebox.showwarning("Uyarı", "Geçerli veri bulunamadı!")
+        return
+    
+    # 3. Model objelerine dönüştür
+    self.karakterler = data_service.process_dataframe(df)
+    
+    if not self.karakterler:
+        messagebox.showwarning("Uyarı", "Geçerli karakter bulunamadı!")
+        return
+    
+    # 4. Dokümanı sağ panelde göster
+    self.document_viewer.load_document(self.current_file_path)
+    
+    # 5. İlk karakteri göster
+    self.current_index = 0
+    self.show_current_karakter()
+    self.update_navigation()
+    self.update_stats()
+    
+    file_name = os.path.basename(self.current_file_path)
+    self.file_path_label.configure(text=f"✓ Yüklendi: {file_name}")
+    
+    messagebox.showinfo("Başarılı", f"{len(self.charakterler)} karakter yüklendi!")
+    
+except Exception as e:
+    messagebox.showerror("Hata", f"İşleme hatası:\n{str(e)}")
+    print(f"İşleme hatası: {e}")
+```
