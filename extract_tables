@@ -4,15 +4,9 @@ def extract_tables(self, file_path: str) -> List:
     """
     print("Veri işleme başlıyor...")
     
-    # Sabit header tanımla - senin çalışan versiyonun
-    extracted_data = ["ITEM NO",
-                      "DIMENSION", 
-                      "ACTUAL",
-                      "BADGE",
-                      "TOOLING",
-                      "REMARKS", 
-                      "B/P ZONE",
-                      "INSP. LEVEL"]
+    # Header'ı ilk eleman olarak liste içinde tanımla
+    headers = ["ITEM NO", "DIMENSION", "ACTUAL", "BADGE", "TOOLING", "REMARKS", "B/P ZONE", "INSP. LEVEL"]
+    extracted_data = [headers]  # ← İlk eleman header LİSTESİ
     
     try:
         # Word dokümanını yükle
@@ -36,16 +30,19 @@ def extract_tables(self, file_path: str) -> List:
                 # DEBUG: Satır verilerini kontrol et
                 print(f"    Debug - row_data uzunluğu: {len(row_data)}")
                 if len(row_data) > 0:
-                    print(f"    Debug - İlk 3 element: {row_data[:3]}")
+                    print(f"    Debug - İlk element: '{row_data[0]}'")
                 
-                # Senin filtreleme mantığın
+                # Filtreleme mantığı
                 if (len(row_data) > 2 and 
-                    row_data not in extracted_data and 
                     row_data[0].startswith("KN") and 
                     not row_data[1].strip().endswith("Inch")):
                     
-                    extracted_data.append(row_data)
-                    print(f"    ✓ Satır eklendi: {row_data[0]} (toplam kolon: {len(row_data)})")
+                    # Satırı 8 kolona pad et veya kırp
+                    padded_row = row_data + [''] * (len(headers) - len(row_data))
+                    padded_row = padded_row[:len(headers)]
+                    
+                    extracted_data.append(padded_row)  # ← LİSTE ekleniyor
+                    print(f"    ✓ Satır eklendi: {row_data[0]} (kolon sayısı: {len(padded_row)})")
         
         print(f"✓ Toplam {len(extracted_data) - 1} karakter çıkarıldı")
         print(f"Header: {extracted_data[0]}")
