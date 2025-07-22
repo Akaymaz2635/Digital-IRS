@@ -1,0 +1,25 @@
+def from_word_tables(word_reader: WordReaderService, file_path: str) -> pd.DataFrame:
+    print("DataFrame oluşturuluyor...")
+    
+    try:
+        extracted_data = word_reader.extract_tables(file_path)
+        
+        if not extracted_data or len(extracted_data) < 2:
+            print("✗ Yeterli veri bulunamadı")
+            return pd.DataFrame()
+        
+        # BURADA DÜZELTİLMESİ GEREKEN KISIM:
+        # extracted_data[0] tek string, ama liste olması gerek
+        headers = extracted_data[0] if isinstance(extracted_data[0], list) else ["ITEM NO", "DIMENSION", "ACTUAL", "BADGE", "TOOLING", "REMARKS", "B/P ZONE", "INSP. LEVEL"]
+        data_rows = extracted_data[1:]
+        
+        df = pd.DataFrame(data_rows, columns=headers)
+        
+        print(f"✓ DataFrame oluşturuldu: {len(df)} satır, {len(df.columns)} kolon")
+        print(f"  Kolon isimleri: {list(df.columns)}")
+        
+        return df
+        
+    except Exception as e:
+        print(f"HATA: DataFrame oluşturma hatası: {e}")
+        return pd.DataFrame()
