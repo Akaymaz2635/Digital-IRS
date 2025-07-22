@@ -1,0 +1,269 @@
+# src/ui/main_window.py içinde - import kısmına ekle
+try:
+    import tkinterweb
+    WEBVIEW_AVAILABLE = True
+except ImportError:
+    print("tkinterweb bulunamadı. pip install tkinterweb ile yükleyin")
+    WEBVIEW_AVAILABLE = False
+
+class DocumentViewer(ctk.CTkFrame):
+    """Word dokümanını görüntülemek için panel - WebView ile"""
+    
+    def __init__(self, parent):
+        super().__init__(parent)
+        
+        self.current_html_file = None
+        self.current_html_content = None
+        self.setup_ui()
+    
+    def setup_ui(self):
+        """Doküman görüntüleyici UI - WebView ile"""
+        # Başlık
+        title_label = ctk.CTkLabel(
+            self,
+            text="Word Dokümanı",
+            font=ctk.CTkFont(size=16, weight="bold")
+        )
+        title_label.pack(pady=(10, 5))
+        
+        # Buton çerçevesi
+        button_frame = ctk.CTkFrame(self, fg_color="transparent")
+        button_frame.pack(pady=5)
+        
+        # Doküman yükleme butonu
+        self.load_button = ctk.CTkButton(
+            button_frame,
+            text="Dokümanı HTML'de Aç",
+            command=self.open_in_browser,
+            state="disabled",
+            width=150
+        )
+        self.load_button.pack(side="left", padx=5)
+        
+        # Yenile butonu
+        self.refresh_button = ctk.CTkButton(
+            button_frame,
+            text="Yenile",
+            command=self.refresh_webview,
+            state="disabled",
+            width=80
+        )
+        self.refresh_button.pack(side="left", padx=5)
+        
+        # WebView veya Text Area
+        if WEBVIEW_AVAILABLE:
+            # WebView kullan
+            self.web_frame = ctk.CTkFrame(self)
+            self.web_frame.pack(fill="both", expand=True, padx=10, pady=10)
+            
+            self.webview = tkinterweb.HtmlFrame(self.web_frame)
+            self.webview.pack(fill="both", expand=True)
+            
+            # Başlangıç HTML
+            self.webview.load_html("""
+            <html>
+            <body style="font-family: Arial; padding: 20px; background-color: #2b2b2b; color: white;">
+                <h3>Word Dokümanı Görüntüleyici</h3>
+                <p>Word dosyası yüklendiğinde doküman içeriği burada görünecek.</p>
+                <p><strong>Özellikler:</strong></p>
+                <ul>
+                    <li>Tam HTML formatting</li>
+                    <li>Tablo yapısı korunur</li>
+                    <li>Scrollable içerik</li>
+                </ul>
+            </body>
+            </html>
+            """)
+            
+        else:
+            # Fallback - Text Area
+            self.text_area = ctk.CTkTextbox(
+                self,
+                wrap="word",
+                font=ctk.CTkFont(size=11)
+            )
+            self.text_area.pack(fill="both", expand=True, padx=10, pady=10)
+            self.text_area.insert("1.0", "tkinterweb kütüphanesi bulunamadı.\nHTML görüntüleme için: pip install tkinterweb")
+            self.text_area.configure(state="disabled")
+    
+    def load_document(self, file_path: str):
+        """Word dokümanını yükler ve WebView'da gösterir"""
+        try:
+            print(f"Doküman WebView'da yükleniyor: {file_path}")
+            
+            if WEBVIEW_AVAILABLE:
+                # Loading mesajı göster
+                self.webview.load_html("""
+                <html>
+                <body style="font-family: Arial; padding: 20px; background-color: #2b2b2b; color: white;">
+                    <h3>Yükleniyor...</h3>
+                    <p>Word dokümanı işleniyor, lütfen bekleyin...</p>
+                </body>
+                </html>
+                """)
+            
+            # Word dokümanını işle
+            with open(file_path, "rb") as docx_file:
+                try:
+                    # Mammoth ile HTML'e çevir
+                    result = mammoth.convert_to_html(docx_file)
+                    
+                    if hasattr(result, 'value'):
+                        html_content = result.value
+                    elif hasattr(result, 'html'):
+                        html_content = result.html
+                    else:
+                        raise Exception("HTML content bulunamadı")
+                    
+                    # Styled HTML oluştur
+                    styled_html = self.create_styled_html(html_content, file_path)
+                    self.current_html_content = styled_html
+                    
+                    if WEBVIEW_AVAILABLE:
+                        # WebView'da göster
+                        self.webview.load_html(styled_html)
+                        self.refresh_button.configure(state="normal")
+                    
+                    # HTML dosyası da oluştur (tarayıcıda açmak için)
+                    self.create_html_file(styled_html, file_path)
+                    
+                    # Butonları aktif et
+                    self.load_button.configure(state="normal")
+                    
+                    print("✓ Doküman WebView'da başarıyla yüklendi")
+                    
+                except Exception as e:
+                    print(f"HTML dönüştürme hatası: {e}")
+                    if WEBVIEW_AVAILABLE:
+                        # Fallback - basit text göster
+                        self.show_text_in_webview(file_path)
+                    
+        except Exception as e:
+            error_msg = f"Doküman yükleme hatası: {str(e)}"
+            print(error_msg)
+            
+            if WEBVIEW_AVAILABLE:
+                self.webview.load_html(f"""
+                <html>
+                <body style="font-family: Arial; padding: 20px; background-color: #2b2b2b; color: #ff6b6b;">
+                    <h3>Hata!</h3>
+                    <p>{error_msg}</p>
+                </body>
+                </html>
+                """)
+    
+    def create_styled_html(self, html_content: str, file_path: str) -> str:
+        """HTML içeriğini güzel stillendirme"""
+        file_name = Path(file_path).stem
+        
+        styled_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>Word Dokümanı - {file_name}</title>
+            <style>
+                body {{ 
+                    font-family: 'Segoe UI', Arial, sans-serif; 
+                    margin: 20px; 
+                    line-height: 1.6;
+                    background-color: #2b2b2b;
+                    color: #ffffff;
+                }}
+                h1, h2, h3 {{
+                    color: #4fc3f7;
+                    border-bottom: 2px solid #4fc3f7;
+                    padding-bottom: 5px;
+                }}
+                table {{ 
+                    border-collapse: collapse; 
+                    width: 100%; 
+                    margin: 15px 0;
+                    background-color: #3b3b3b;
+                    border-radius: 5px;
+                    overflow: hidden;
+                }}
+                th, td {{ 
+                    border: 1px solid #555; 
+                    padding: 12px 8px; 
+                    text-align: left;
+                }}
+                th {{ 
+                    background-color: #4fc3f7; 
+                    font-weight: bold;
+                    color: #000;
+                }}
+                tr:nth-child(even) {{
+                    background-color: #404040;
+                }}
+                tr:hover {{
+                    background-color: #505050;
+                }}
+                p {{
+                    margin: 10px 0;
+                }}
+                .header {{
+                    text-align: center;
+                    margin-bottom: 30px;
+                    padding: 20px;
+                    background-color: #404040;
+                    border-radius: 10px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>📋 Word Dokümanı</h1>
+                <h2>{file_name}</h2>
+            </div>
+            {html_content}
+        </body>
+        </html>
+        """
+        
+        return styled_html
+    
+    def show_text_in_webview(self, file_path: str):
+        """Fallback - text'i webview'da göster"""
+        try:
+            doc = Document(file_path)
+            
+            # Text content topla
+            text_content = ""
+            for para in doc.paragraphs:
+                if para.text.strip():
+                    text_content += f"<p>{para.text}</p>"
+            
+            # Tabloları HTML olarak ekle
+            table_html = ""
+            for i, table in enumerate(doc.tables):
+                table_html += f"<h3>Tablo {i+1}</h3><table>"
+                for row in table.rows:
+                    table_html += "<tr>"
+                    for cell in row.cells:
+                        table_html += f"<td>{cell.text}</td>"
+                    table_html += "</tr>"
+                table_html += "</table>"
+            
+            full_html = f"""
+            <html>
+            <body style="font-family: Arial; padding: 20px; background-color: #2b2b2b; color: white;">
+                <h2>Word Dokümanı (Text Modu)</h2>
+                {text_content}
+                {table_html}
+            </body>
+            </html>
+            """
+            
+            self.webview.load_html(full_html)
+            
+        except Exception as e:
+            print(f"Text webview hatası: {e}")
+    
+    def refresh_webview(self):
+        """WebView'ı yenile"""
+        if WEBVIEW_AVAILABLE and self.current_html_content:
+            self.webview.load_html(self.current_html_content)
+            print("WebView yenilendi")
+    
+    # create_html_file ve open_in_browser metodları aynı kalacak...
