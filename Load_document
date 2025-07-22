@@ -1,0 +1,54 @@
+def load_document(self, file_path: str):
+    """Word dokümanını yükler ve gösterir"""
+    try:
+        print(f"Doküman yükleniyor: {file_path}")
+        
+        # Text area'yı temizle
+        self.text_area.configure(state="normal")
+        self.text_area.delete("1.0", tk.END)
+        self.text_area.insert("1.0", "Doküman yükleniyor...\n")
+        self.text_area.configure(state="disabled")
+        
+        # Word dokümanını oku
+        with open(file_path, "rb") as docx_file:
+            # mammoth ile HTML'e çevir - DÜZELTİLMİŞ
+            try:
+                result = mammoth.convert_to_html(docx_file)
+                
+                # Doğru attributeları kontrol et
+                if hasattr(result, 'value'):
+                    html_content = result.value  # ← DOĞRU ATTRIBUTE
+                elif hasattr(result, 'html'):
+                    html_content = result.html
+                else:
+                    print(f"Result attributes: {dir(result)}")
+                    raise Exception("Mammoth result'ında html content bulunamadı")
+                
+                # HTML dosyası oluştur
+                self.create_html_file(html_content, file_path)
+                
+                # Text area'da basit preview göster
+                self.show_text_preview(file_path)
+                
+                # HTML açma butonunu aktif et
+                self.load_button.configure(state="normal")
+                
+                print("✓ Doküman başarıyla yüklendi")
+                
+            except ImportError:
+                print("mammoth bulunamadı, basit text görünümü kullanılıyor")
+                # mammoth yoksa basit text extraction
+                self.show_simple_text(file_path)
+            except Exception as e:
+                print(f"Mammoth hatası: {e}")
+                # Fallback - basit text
+                self.show_simple_text(file_path)
+                
+    except Exception as e:
+        error_msg = f"Doküman yükleme hatası: {str(e)}"
+        print(error_msg)
+        
+        self.text_area.configure(state="normal")
+        self.text_area.delete("1.0", tk.END)
+        self.text_area.insert("1.0", f"HATA: {error_msg}")
+        self.text_area.configure(state="disabled")
