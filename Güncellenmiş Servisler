@@ -222,52 +222,52 @@ def get_summary(self) -> dict:
 
 # NavigableMainWindow.process_file() metodunu güncelle:
 
-def process_file_updated(self):
-“””
-GÜNCELLENMIŞ - Senin servislerinle çalışan versiyon
-“””
-if not self.current_file_path:
-messagebox.showerror(“Hata”, “Önce bir dosya seçin!”)
-return
+def process_file(self):
+    """
+    GÜNCELLENMIŞ - Senin servislerinle çalışan versiyon
+    """
+    if not self.current_file_path:
+        messagebox.showerror("Hata", "Önce bir dosya seçin!")
+        return
+    
+    try:
+        self.file_path_label.configure(text="İşleniyor...")
+        self.update()
+        
+        # 1. Word servisini başlat (sadece init)
+        word_service = WordReaderService()
+        
+        # 2. Data processor ile DataFrame oluştur
+        data_service = DataProcessorService()
+        df = data_service.from_word_tables(word_service, self.current_file_path)
+        
+        if df.empty:
+            messagebox.showwarning("Uyarı", "Geçerli veri bulunamadı!")
+            return
+        
+        # 3. Model objelerine dönüştür
+        self.karakterler = data_service.process_dataframe(df)
+        
+        if not self.karakterler:
+            messagebox.showwarning("Uyarı", "Geçerli karakter bulunamadı!")
+            return
+        
+        # 4. Dokümanı sağ panelde göster
+        self.document_viewer.load_document(self.current_file_path)
+        
+        # 5. İlk karakteri göster
+        self.current_index = 0
+        self.show_current_karakter()
+        self.update_navigation()
+        self.update_stats()
+        
+        file_name = os.path.basename(self.current_file_path)
+        self.file_path_label.configure(text=f"✓ Yüklendi: {file_name}")
+        
+        messagebox.showinfo("Başarılı", f"{len(self.karakterler)} karakter yüklendi!")
+        
+    except Exception as e:
+        messagebox.showerror("Hata", f"İşleme hatası:\n{str(e)}")
+        print(f"İşleme hatası: {e}")
 
-```
-try:
-    self.file_path_label.configure(text="İşleniyor...")
-    self.update()
-    
-    # 1. Word servisini başlat (sadece init)
-    word_service = WordReaderService()
-    
-    # 2. Data processor ile DataFrame oluştur
-    data_service = DataProcessorService()
-    df = data_service.from_word_tables(word_service, self.current_file_path)
-    
-    if df.empty:
-        messagebox.showwarning("Uyarı", "Geçerli veri bulunamadı!")
-        return
-    
-    # 3. Model objelerine dönüştür
-    self.karakterler = data_service.process_dataframe(df)
-    
-    if not self.karakterler:
-        messagebox.showwarning("Uyarı", "Geçerli karakter bulunamadı!")
-        return
-    
-    # 4. Dokümanı sağ panelde göster
-    self.document_viewer.load_document(self.current_file_path)
-    
-    # 5. İlk karakteri göster
-    self.current_index = 0
-    self.show_current_karakter()
-    self.update_navigation()
-    self.update_stats()
-    
-    file_name = os.path.basename(self.current_file_path)
-    self.file_path_label.configure(text=f"✓ Yüklendi: {file_name}")
-    
-    messagebox.showinfo("Başarılı", f"{len(self.charakterler)} karakter yüklendi!")
-    
-except Exception as e:
-    messagebox.showerror("Hata", f"İşleme hatası:\n{str(e)}")
-    print(f"İşleme hatası: {e}")
-```
+
