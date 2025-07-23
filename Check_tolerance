@@ -1,0 +1,37 @@
+def check_tolerance(self, actual_value: float) -> str:
+    """Tolerance kontrolü yapar"""
+    karakter = self.current_karakter
+    
+    if not karakter:
+        return ""
+    
+    # Parsed dimension bilgileri var mı kontrol et
+    if not (hasattr(karakter, 'lower_limit') or hasattr(karakter, 'upper_limit')):
+        return ""
+    
+    has_lower = hasattr(karakter, 'lower_limit') and karakter.lower_limit is not None
+    has_upper = hasattr(karakter, 'upper_limit') and karakter.upper_limit is not None
+    
+    if not has_lower and not has_upper:
+        return ""
+    
+    try:
+        if has_lower and has_upper:
+            if karakter.lower_limit <= actual_value <= karakter.upper_limit:
+                return "✅ Tolerance İçinde"
+            else:
+                return "❌ Tolerance Dışı"
+        elif has_upper:
+            if actual_value <= karakter.upper_limit:
+                return "✅ Max Limit İçinde"
+            else:
+                return "❌ Max Limit Aşıldı"
+        elif has_lower:
+            if actual_value >= karakter.lower_limit:
+                return "✅ Min Limit İçinde"
+            else:
+                return "❌ Min Limit Altında"
+    except:
+        pass
+    
+    return ""
