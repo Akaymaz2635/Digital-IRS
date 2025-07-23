@@ -1,0 +1,200 @@
+def setup_ui(self):
+    """UI'ı oluşturur"""
+    # Ana grid ayarları
+    self.grid_columnconfigure(1, weight=1)
+    
+    # Başlık alanı
+    self.title_frame = ctk.CTkFrame(self)
+    self.title_frame.grid(row=0, column=0, columnspan=2, sticky="ew", padx=20, pady=(20, 10))
+    
+    self.item_label = ctk.CTkLabel(
+        self.title_frame,
+        text="Karakter seçilmedi",
+        font=ctk.CTkFont(size=24, weight="bold"),
+        text_color="white"
+    )
+    self.item_label.pack(pady=15)
+    
+    # Ana bilgiler
+    info_frame = ctk.CTkFrame(self)
+    info_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=20, pady=10)
+    info_frame.grid_columnconfigure(1, weight=1)
+    
+    # Dimension
+    dim_label = ctk.CTkLabel(info_frame, text="Ölçü:", font=ctk.CTkFont(size=16, weight="bold"))
+    dim_label.grid(row=0, column=0, sticky="w", padx=20, pady=10)
+    
+    self.dim_value = ctk.CTkLabel(
+        info_frame, 
+        text="-",
+        font=ctk.CTkFont(size=16),
+        wraplength=300
+    )
+    self.dim_value.grid(row=0, column=1, sticky="w", padx=20, pady=10)
+    
+    # Tooling
+    tool_label = ctk.CTkLabel(info_frame, text="Ölçüm Aleti:", font=ctk.CTkFont(size=16, weight="bold"))
+    tool_label.grid(row=1, column=0, sticky="w", padx=20, pady=10)
+    
+    self.tool_value = ctk.CTkLabel(
+        info_frame, 
+        text="-",
+        font=ctk.CTkFont(size=16)
+    )
+    self.tool_value.grid(row=1, column=1, sticky="w", padx=20, pady=10)
+    
+    # BP Zone
+    zone_label = ctk.CTkLabel(info_frame, text="Bölge:", font=ctk.CTkFont(size=16, weight="bold"))
+    zone_label.grid(row=2, column=0, sticky="w", padx=20, pady=10)
+    
+    self.zone_value = ctk.CTkLabel(
+        info_frame, 
+        text="-",
+        font=ctk.CTkFont(size=16)
+    )
+    self.zone_value.grid(row=2, column=1, sticky="w", padx=20, pady=10)
+    
+    # Inspection Level
+    level_label = ctk.CTkLabel(info_frame, text="Kontrol Seviyesi:", font=ctk.CTkFont(size=16, weight="bold"))
+    level_label.grid(row=3, column=0, sticky="w", padx=20, pady=10)
+    
+    self.level_value = ctk.CTkLabel(
+        info_frame, 
+        text="-",
+        font=ctk.CTkFont(size=16)
+    )
+    self.level_value.grid(row=3, column=1, sticky="w", padx=20, pady=10)
+    
+    # Remarks
+    remarks_label = ctk.CTkLabel(info_frame, text="Açıklamalar:", font=ctk.CTkFont(size=16, weight="bold"))
+    remarks_label.grid(row=4, column=0, sticky="nw", padx=20, pady=10)
+    
+    self.remarks_value = ctk.CTkLabel(
+        info_frame, 
+        text="-",
+        font=ctk.CTkFont(size=14),
+        wraplength=400,
+        justify="left"
+    )
+    self.remarks_value.grid(row=4, column=1, sticky="w", padx=20, pady=10)
+    
+    # ===== YENİ EKLENEN PARSED DIMENSION BİLGİLERİ =====
+    
+    # Tolerance Type
+    tolerance_type_label = ctk.CTkLabel(info_frame, text="Tolerance Tipi:", font=ctk.CTkFont(size=16, weight="bold"))
+    tolerance_type_label.grid(row=5, column=0, sticky="w", padx=20, pady=10)
+    
+    self.tolerance_type_value = ctk.CTkLabel(
+        info_frame, 
+        text="-",
+        font=ctk.CTkFont(size=14),
+        text_color="lightblue"
+    )
+    self.tolerance_type_value.grid(row=5, column=1, sticky="w", padx=20, pady=10)
+    
+    # Nominal Value
+    nominal_label = ctk.CTkLabel(info_frame, text="Nominal Değer:", font=ctk.CTkFont(size=16, weight="bold"))
+    nominal_label.grid(row=6, column=0, sticky="w", padx=20, pady=10)
+    
+    self.nominal_value = ctk.CTkLabel(
+        info_frame, 
+        text="-",
+        font=ctk.CTkFont(size=14),
+        text_color="lightgreen"
+    )
+    self.nominal_value.grid(row=6, column=1, sticky="w", padx=20, pady=10)
+    
+    # Tolerance Limits
+    limits_label = ctk.CTkLabel(info_frame, text="Tolerance Sınırları:", font=ctk.CTkFont(size=16, weight="bold"))
+    limits_label.grid(row=7, column=0, sticky="w", padx=20, pady=10)
+    
+    self.limits_value = ctk.CTkLabel(
+        info_frame, 
+        text="-",
+        font=ctk.CTkFont(size=14),
+        text_color="yellow"
+    )
+    self.limits_value.grid(row=7, column=1, sticky="w", padx=20, pady=10)
+    
+    # ===== ÖLÇÜM GİRİŞİ FRAME - ROW 8'E TAŞINDI =====
+    
+    # Ölçüm girişi - En önemli kısım
+    measurement_frame = ctk.CTkFrame(self)
+    measurement_frame.grid(row=8, column=0, columnspan=2, sticky="ew", padx=20, pady=20)
+    measurement_frame.grid_columnconfigure(1, weight=1)
+    
+    # Ölçüm başlığı
+    measurement_title = ctk.CTkLabel(
+        measurement_frame,
+        text="ÖLÇÜM SONUCU",
+        font=ctk.CTkFont(size=18, weight="bold"),
+        text_color="yellow"
+    )
+    measurement_title.grid(row=0, column=0, columnspan=3, pady=(15, 10))
+    
+    # Mevcut değer göstergesi
+    current_label = ctk.CTkLabel(
+        measurement_frame,
+        text="Mevcut Değer:",
+        font=ctk.CTkFont(size=14, weight="bold")
+    )
+    current_label.grid(row=1, column=0, sticky="w", padx=20, pady=5)
+    
+    self.current_value_label = ctk.CTkLabel(
+        measurement_frame,
+        text="Henüz ölçüm yapılmadı",
+        font=ctk.CTkFont(size=14),
+        text_color="orange"
+    )
+    self.current_value_label.grid(row=1, column=1, sticky="w", padx=10, pady=5)
+    
+    # Yeni değer girişi
+    new_label = ctk.CTkLabel(
+        measurement_frame,
+        text="Yeni Ölçüm:",
+        font=ctk.CTkFont(size=14, weight="bold")
+    )
+    new_label.grid(row=2, column=0, sticky="w", padx=20, pady=10)
+    
+    self.actual_entry = ctk.CTkEntry(
+        measurement_frame,
+        placeholder_text="Ölçüm değerini girin (örn: 25.48)",
+        width=200,
+        height=35,
+        font=ctk.CTkFont(size=14)
+    )
+    self.actual_entry.grid(row=2, column=1, sticky="w", padx=10, pady=10)
+    
+    # Kaydet butonu
+    self.save_button = ctk.CTkButton(
+        measurement_frame,
+        text="Kaydet",
+        command=self.save_measurement,
+        width=100,
+        height=35,
+        font=ctk.CTkFont(size=14, weight="bold")
+    )
+    self.save_button.grid(row=2, column=2, sticky="w", padx=10, pady=10)
+    
+    # Temizle butonu
+    clear_button = ctk.CTkButton(
+        measurement_frame,
+        text="Temizle",
+        command=self.clear_measurement,
+        width=80,
+        height=35,
+        font=ctk.CTkFont(size=12),
+        fg_color="gray"
+    )
+    clear_button.grid(row=3, column=1, sticky="w", padx=10, pady=5)
+    
+    # Status mesajı
+    self.status_label = ctk.CTkLabel(
+        measurement_frame,
+        text="",
+        font=ctk.CTkFont(size=12)
+    )
+    self.status_label.grid(row=4, column=0, columnspan=3, pady=10)
+    
+    # Enter tuşu ile kaydetme
+    self.actual_entry.bind('<Return>', lambda e: self.save_measurement())
