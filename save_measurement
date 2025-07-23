@@ -1,0 +1,44 @@
+def save_measurement(self):
+    """Ölçümü kaydeder"""
+    if not self.current_karakter:
+        return
+    
+    try:
+        new_value = self.actual_entry.get().strip()
+        
+        if new_value == "":
+            self.status_label.configure(text="⚠ Değer boş bırakılamaz", text_color="orange")
+            return
+        
+        # Virgülü noktaya çevir
+        new_value = new_value.replace(',', '.')
+        
+        # Sayı kontrolü (isteğe bağlı)
+        try:
+            actual_float = float(new_value)  # Sayı mı kontrol et
+            self.current_karakter.actual = new_value
+            
+            # Tolerance kontrolü
+            tolerance_status = self.check_tolerance(actual_float)
+            if tolerance_status:
+                self.status_label.configure(text=f"✓ Kaydedildi! {tolerance_status}", text_color="green")
+            else:
+                self.status_label.configure(text="✓ Ölçüm kaydedildi!", text_color="green")
+                
+        except ValueError:
+            # Sayı değilse de kabul et
+            self.current_karakter.actual = new_value
+            self.status_label.configure(text="✓ Kaydedildi (metin değer)", text_color="green")
+        
+        # Mevcut değer göstergesini güncelle
+        self.current_value_label.configure(
+            text=f"{new_value}",
+            text_color="green"
+        )
+        
+        # Callback çağır
+        if self.on_update_callback:
+            self.on_update_callback(self.current_karakter)
+        
+    except Exception as e:
+        self.status_label.configure(text=f"Hata: {str(e)}", text_color="red")
