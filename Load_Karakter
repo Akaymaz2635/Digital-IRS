@@ -1,0 +1,69 @@
+def load_karakter(self, karakter: TeknikResimKarakteri):
+    """Karakteri yükler ve gösterir"""
+    self.current_karakter = karakter
+    
+    # Bilgileri güncelle
+    self.item_label.configure(text=f"Item: {karakter.item_no}")
+    self.dim_value.configure(text=karakter.dimension)
+    self.tool_value.configure(text=karakter.tooling)
+    self.zone_value.configure(text=karakter.bp_zone or "Belirtilmemiş")
+    self.level_value.configure(text=karakter.inspection_level or "100%")
+    self.remarks_value.configure(text=karakter.remarks or "Açıklama yok")
+    
+    # ===== PARSED DIMENSION BİLGİLERİNİ GÖSTER =====
+    if hasattr(karakter, 'parsed_dimension') and karakter.parsed_dimension and hasattr(karakter, 'tolerance_type') and karakter.tolerance_type:
+        # Tolerance Type
+        self.tolerance_type_value.configure(
+            text=karakter.tolerance_type.capitalize(),
+            text_color="lightblue"
+        )
+        
+        # Nominal Value
+        if hasattr(karakter, 'nominal_value') and karakter.nominal_value is not None:
+            self.nominal_value.configure(
+                text=f"{karakter.nominal_value}",
+                text_color="lightgreen"
+            )
+        else:
+            self.nominal_value.configure(text="Tanımsız", text_color="gray")
+        
+        # Tolerance Limits
+        has_lower = hasattr(karakter, 'lower_limit') and karakter.lower_limit is not None
+        has_upper = hasattr(karakter, 'upper_limit') and karakter.upper_limit is not None
+        
+        if has_lower and has_upper:
+            limits_text = f"{karakter.lower_limit} ↔ {karakter.upper_limit}"
+            self.limits_value.configure(text=limits_text, text_color="yellow")
+        elif has_upper:
+            self.limits_value.configure(text=f"Max: {karakter.upper_limit}", text_color="orange")
+        elif has_lower:
+            self.limits_value.configure(text=f"Min: {karakter.lower_limit}", text_color="orange")
+        else:
+            self.limits_value.configure(text="Limit yok", text_color="gray")
+    else:
+        # Parse edilemedi
+        self.tolerance_type_value.configure(text="Parse edilemedi", text_color="gray")
+        self.nominal_value.configure(text="-", text_color="gray")
+        self.limits_value.configure(text="-", text_color="gray")
+    
+    # ===== MEVCUT ÖLÇÜM DEĞERİNİ GÖSTER =====
+    if karakter.actual:
+        self.current_value_label.configure(
+            text=f"{karakter.actual}",
+            text_color="green"
+        )
+        # Entry'e de yerleştir
+        self.actual_entry.delete(0, tk.END)
+        self.actual_entry.insert(0, str(karakter.actual))
+    else:
+        self.current_value_label.configure(
+            text="Henüz ölçüm yapılmadı",
+            text_color="orange"
+        )
+        self.actual_entry.delete(0, tk.END)
+    
+    # Status'u temizle
+    self.status_label.configure(text="")
+    
+    # Entry'e focus ver
+    self.actual_entry.focus()
