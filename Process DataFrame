@@ -1,0 +1,92 @@
+def process_dataframe(self, df: pd.DataFrame) -> List[TeknikResimKarakteri]:
+    """
+    DataFrame'i TeknikResimKarakteri model objelerine dönüştürür
+    """
+    print("Model objelerine dönüştürülüyor...")
+    
+    if df.empty:
+        print("✗ Boş DataFrame")
+        return []
+    
+    try:
+        # ===== YENİ EKLEME: Parser'ı başlat =====
+        from .dimension_parser import OlcuYakalayici  # Parser import
+        parser = OlcuYakalayici()
+        # ======================================
+        
+        karakterler = []
+        
+        for index, row in df.iterrows():
+            try:
+                # Güvenli veri çıkarma
+                item_no = str(row.get('ITEM NO', '')).strip()
+                dimension = str(row.get('DIMENSION', '')).strip()
+                tooling = str(row.get('TOOLING', '')).strip()
+                remarks = str(row.get('REMARKS', '')).strip()
+                bp_zone = str(row.get('B/P ZONE', '')).strip()
+                inspection_level = str(row.get('INSP. LEVEL', '100%')).strip()
+                actual = row.get('ACTUAL')
+                badge = str(row.get('BADGE', '')).strip()
+                
+                # Actual değeri işleme
+                if pd.isna(actual) or str(actual).strip() in ['', 'nan', 'None']:
+                    actual = None
+                else:
+                    actual = str(actual).strip()
+                
+                # Temel validasyon
+                if not item_no or item_no in ['nan', 'None']:
+                    print(f"  ⚠ Satır {index + 1}: Item no boş, atlanıyor")
+                    continue
+                
+                if not dimension or dimension in ['nan', 'None']:
+                    print(f"  ⚠ Satır {index + 1}: Dimension boş, atlanıyor")
+                    continue
+                
+                # Model objesi oluştur
+                karakter = TeknikResimKarakteri(
+                    item_no=item_no,
+                    dimension=dimension,
+                    tooling=tooling,
+                    remarks=remarks,
+                    bp_zone=bp_zone,
+                    inspection_level=inspection_level,
+                    actual=actual,
+                    badge=badge
+                )
+                
+                # ===== YENİ EKLEME: Dimension Parsing =====
+                try:
+                    parsed_result = parser.isle(dimension)
+                    if parsed_result:
+                        # Parse edilen verileri karakter objesine ekle
+                        karakter.parsed_dimension = parsed_result
+                        karakter.tolerance_type = parsed_result.get('format')
+                        karakter.nominal_value = parsed_result.get('nominal')
+                        karakter.upper_limit = parsed_result.get('ust_limit')
+                        karakter.lower_limit = parsed_result.get('alt_limit')
+                        print(f"    ✓ {karakter.item_no} - Dimension parsed: {parsed_result.get('format')}")
+                    else:
+                        # Parse edilemedi, ama hata verme - sadece None bırak
+                        karakter.parsed_dimension = None
+                        print(f"    ⚠ {karakter.item_no} - Dimension parse edilemedi: {dimension}")
+                except Exception as parse_error:
+                    # Parser hatası olsa bile ana işlemi durdurma
+                    print(f"    ⚠ {karakter.item_no} - Parser hatası: {parse_error}")
+                    karakter.parsed_dimension = None
+                # ==========================================
+                
+                karakterler.append(karakter)
+                print(f"  ✓ {karakter.item_no} eklendi")
+                
+            except Exception as e:
+                print(f"  ✗ Satır {index + 1} işlenirken hata: {e}")
+                continue
+        
+        self.processed_data = karakterler
+        print(f"✓ {len(karakterler)} karakter başarıyla işlendi")
+        return karakterler
+        
+    except Exception as e:
+        print(f"HATA: Model dönüştürme hatası: {e}")
+        return []
